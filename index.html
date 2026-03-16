@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>《為學》背默挑戰</title>
+    <style>
+        :root { --primary: #00796b; --bg: #f0f4f4; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); width: 100%; max-width: 600px; text-align: center; }
+        .hidden { display: none; }
+        input.blank { width: 80px; border: none; border-bottom: 2px solid var(--primary); text-align: center; font-size: 1em; }
+        .leaderboard { width: 100%; margin-top: 20px; border-collapse: collapse; }
+        .leaderboard th, .leaderboard td { border-bottom: 1px solid #ddd; padding: 8px; font-size: 0.9em; }
+        .loading { color: #666; font-style: italic; }
+        .btn { background: var(--primary); color: white; border: none; padding: 10px 25px; border-radius: 20px; cursor: pointer; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+<div id="start-screen" class="card">
+    <h1>⛵ 《為學》背默挑戰</h1>
+    <input type="text" id="playerName" placeholder="輸入班別姓名 (如: 1B 陳一心)” style="padding:10px; width:80%; margin-bottom:10px; border-radius:5px; border:1px solid #ccc;"><br>
+    <button class="btn" onclick="startGame()">開始挑戰</button>
+    <hr>
+    <h3>🏆 全級前 10 名</h3>
+    <div id="loading-lb" class="loading">正在載入最新排名...</div>
+    <table class="leaderboard">
+        <thead><tr><th>名次</th><th>玩家</th><th>準確度</th><th>用時</th></tr></thead>
+        <tbody id="lb-body"></tbody>
+    </table>
+</div>
+
+<div id="game-screen" class="card hidden">
+    <div id="timer">⏱️ 秒數: 0</div>
+    <div style="text-align:left; line-height:2.5; margin:20px 0;">
+        吾資之昏，<input type="text" class="blank" data-ans="不逮">人也；吾材之庸，<input type="text" class="blank" data-ans="不逮">人也。<br>
+        <input type="text" class="blank" data-ans="旦旦">而學之，久而不怠焉；<input type="text" class="blank" data-ans="迄乎成">，而亦不知其昏與庸也。<br>
+        吾資之聰，倍人也；吾材之敏，倍人也。<br> <input type="text" class="blank" data-ans="屏棄">而不用，其昏與庸無以異也。<br> 然則昏庸聰敏之用，<input type="text" class="blank" data-ans="豈有常哉">？<br><br> 蜀之鄙有二僧，其一貧，其一富。貧者<input type="text" class="blank" data-ans="語於">富者曰：「吾欲之南海，何如？」<br> 富者曰：「子<input type="text" class="blank" data-ans="何恃而往">？」曰：「吾<input type="text"class="blank" data-ans="一瓶一缽">足矣。」<br> 富者曰：「吾數年來欲<input type="text" class="blank" data-ans="買舟而下">，猶未能也。子何恃而往？」<br> 越明年，貧者自南海還，以告富者，富者有<input type="text"class="blank" data-ans="慚色">。<br> 西蜀之去南海，不知幾千里也；僧之富者不能至，而貧者至焉。<br> 人之立志，<input type="text" class="blank" data-ans="顧不如">蜀鄙之僧哉？
+    </div>
+    <button class="btn" onclick="submitGame()">提交成績</button>
+</div>
+
+<div id="result-screen" class="card hidden">
+    <h2>挑戰完成！</h2>
+    <div id="final-stats" style="font-size:1.2em; margin:20px 0;"></div>
+    <p id="upload-status">正在上傳成績到雲端排行榜...</p>
+    <button class="btn" onclick="location.reload()">返回首頁</button>
+</div>
+
+<script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby7alAmSg7VL6Urr0ppNXTsGZ2LFyCyJAl1bV63B76SOedfThhJExRm0gsfLVfqsuHl8g/exec"; // 
+    let startTime, timerInterval, pName = "";
+
+    // 頁面載入時抓取排行榜
+    window.onload = fetchLeaderboard;
+
+    function fetchLeaderboard() {
+        fetch(SCRIPT_URL)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('loading-lb').classList.add('hidden');
+            const tbody = document.getElementById('lb-body');
+            tbody.innerHTML = data.map((r, i) => `<tr><td>${i+1}</td><td>${r[0]}</td><td>${r[1]}%</td><td>${r[2]}s</td></tr>`).join('');
+        });
+    }
+
+    function startGame() {
+        pName = document.getElementById('playerName').value.trim();
+        if(!pName) return alert("請輸入姓名");
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('game-screen').classList.remove('hidden');
+        startTime = Date.now();
+        timerInterval = setInterval(() => {
+            document.getElementById('timer').innerText = "⏱️ 秒數: " + Math.floor((Date.now()-startTime)/1000);
+        }, 1000);
+    }
+
+    function submitGame() {
+        clearInterval(timerInterval);
+        const time = Math.floor((Date.now()-startTime)/1000);
+        const inputs = document.querySelectorAll('.blank');
+        let correct = 0;
+        inputs.forEach(i => { if(i.value.trim() === i.getAttribute('data-ans')) correct++; });
+        const score = Math.round((correct/inputs.length)*100);
+
+        document.getElementById('game-screen').classList.add('hidden');
+        document.getElementById('result-screen').classList.remove('hidden');
+        document.getElementById('final-stats').innerText = `得分：${score}% | 用時：${time}秒`;
+
+        // 傳送數據到 Google Sheets
+        fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ name: pName, score: score, time: time })
+        })
+        .then(() => {
+            document.getElementById('upload-status').innerText = "✅ 成績已成功更新至雲端排行榜！";
+        })
+        .catch(() => {
+            document.getElementById('upload-status').innerText = "❌ 上傳失敗，請檢查網路。";
+        });
+    }
+</script>
+</body>
+</html>
